@@ -1,7 +1,20 @@
 from protocol import *
 from connection import Connection
 from builtins import isinstance
+from itertools import chain
 import logging
+
+def parse_command(cmd, *args):
+    cmd_array = []
+    cmd_array.append('*' + str(len(args) + 1))
+    cmd_array.append('$' + str(len(cmd)))
+    cmd_array.append(cmd)
+    for arg in args:
+        cmd_array.append('$' + str(len(str(arg))))
+        cmd_array.append(str(arg))
+    cmd_context = '\r\n'.join(cmd_array)
+    cmd_context += '\r\n'
+    return cmd_context
 
 class Pydis(Connection):
     def __init__(self, host='127.0.0.1', port=6379, db=0, password=None):
@@ -266,21 +279,15 @@ class Pydis(Connection):
         
 
 class Pipeline(Pydis):
-    def __init__(self, connection):
+    def __init__(self, connection, is_transaction=True):
         self._conn = connection
         self.command_stack = b''
+        self._is_tran = is_transaction
+        self._command_count = 0
         
     def pipeline_execute_command(self, cmd, *args):
-        cmd_array = []
-        cmd_array.append('*' + str(len(args) + 1))
-        cmd_array.append('$' + str(len(cmd)))
-        cmd_array.append(cmd)
-        for arg in args:
-            cmd_array.append('$' + str(len(str(arg))))
-            cmd_array.append(str(arg))
-        cmd_context = '\r\n'.join(cmd_array)
-        cmd_context += '\r\n'
-        self.command_stack += cmd_context.encode()
+        self.command_stack += parse_command(cmd, *args).encode()
+        self._command_count += 1
         logging.debug(self.command_stack)
         return self
     
@@ -288,3 +295,11 @@ class Pipeline(Pydis):
         self._conn._socket.send(self.command_stack)
         recv = self._conn._socket.recv(self._conn._socket_read_size)
         return self.parse_recv(recv)
+
+    def execute_transaction(self):
+        multi_cmd = parse_command(MULTI).encode()
+        self.command_stack = multi_cmd + self.command_stack
+        exec_cmd = parse_command(EXEC).encode()
+        self.command_stack += exec_cmd
+        res = self.execute_pipeline()
+        return res[self._command_count:]
