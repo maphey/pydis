@@ -276,7 +276,91 @@ class Pydis(Connection):
         res = self.parse_recv(recv)
         return res
         
+    def hset(self, key, field, value):
+        self._conn.send_command(HSET, key, field, value)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hget(self, key, field):
+        self._conn.send_command(HGET, key, field)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hsetnx(self, key, field, value):
+        self._conn.send_command(HSETNX, key, field, value)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hmset(self, key, field_value):
+        if isinstance(field_value, dict):
+            value = []
+            for k, v in field_value.items():
+                value.append(k)
+                value.append(v)
+            self._conn.send_command(HMSET, key, *value)
+            recv = self._conn.recv()
+            res = self.parse_recv(recv)
+            return res
+        else:
+            return None
         
+    def hmget(self, key, *fields):
+        self._conn.send_command(HMGET, key, *fields)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        parse_res = {}
+        for i in range(len(fields)):
+            parse_res[fields[i]] = res[i]
+        return parse_res
+    
+    def hincrby(self, key, field, increment):
+        self._conn.send_command(HINCRBY, key, field, increment)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hexists(self, key, field):
+        self._conn.send_command(HEXISTS, key, field)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hdel(self, key, *fields):
+        self._conn.send_command(HDEL, key, *fields)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hlen(self, key):
+        self._conn.send_command(HLEN, key)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hkeys(self, key):
+        self._conn.send_command(HKEYS, key)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hvals(self, key):
+        self._conn.send_command(HVALS, key)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def hgetall(self, key):
+        self._conn.send_command(HGETALL, key)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        parse_res = {}
+        for i in range(len(res) // 2):
+            parse_res[res[i * 2]] = res[i * 2 + 1]
+        return parse_res
+    
 
 class Pipeline(Pydis):
     def __init__(self, connection, is_transaction=True):
@@ -302,4 +386,7 @@ class Pipeline(Pydis):
         exec_cmd = parse_command(EXEC).encode()
         self.command_stack += exec_cmd
         res = self.execute_pipeline()
-        return res[self._command_count:]
+        index = self._command_count
+        self._command_count = 0
+        return res[index:]
+

@@ -113,6 +113,40 @@ def decrby_test():
     res = pydis.decrby('d', 8)
     print(res)
 
+def append_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.append('a', 8)
+    print(res)
+    
+def hset_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.hset('m', 'f1', 'v1')
+    print(res)
 
+def hget_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.hget('m', 'f1')
+    print(res)
+    
+def hmset_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    fv = {'hmf1':'hmv1', 'hmf2':'hmv2'}
+    res = pydis.hmset('hm', fv)
+    print(res)
 
-decrby_test()
+def hmget_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.hmget('hm', 'hmf1', 'hmf2')
+    print(res)
+    
+def hvals_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.hvals('hm')
+    print(res)
+
+def hgetall_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.hgetall('hm')
+    print(res)
+    
+hgetall_test()
