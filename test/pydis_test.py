@@ -149,4 +149,14 @@ def hgetall_test():
     res = pydis.hgetall('hm')
     print(res)
     
-hgetall_test()
+def publish_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.publish('mychannel', 'my message')
+    print(res)
+    
+def subscribe_test():
+    pydis = Pydis('192.168.99.100', 32768)
+    res = pydis.subscribe('mychannel')
+    print(res)
+    
+subscribe_test()

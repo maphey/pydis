@@ -1,8 +1,8 @@
-from protocol import *
-from connection import Connection
 from builtins import isinstance
-from itertools import chain
+from connection import Connection
+from protocol import *
 import logging
+
 
 def parse_command(cmd, *args):
     cmd_array = []
@@ -20,6 +20,10 @@ class Pydis(Connection):
     def __init__(self, host='127.0.0.1', port=6379, db=0, password=None):
         self._conn = Connection(host, port, db, password)
         self._conn.connect()
+        
+    def close(self):
+        if self._conn:
+            self._conn.close()
     
     def parse_recv(self, recv):
         if isinstance(recv, bytes):
@@ -361,6 +365,33 @@ class Pydis(Connection):
             parse_res[res[i * 2]] = res[i * 2 + 1]
         return parse_res
     
+    def publish(self, channel, msg):
+        self._conn.send_command(PUBLISH, channel, msg)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def subscribe(self, *channels):
+        self._conn.send_command(SUBSCRIBE, *channels)
+        
+    def unsubscribe(self, *channels):
+        self._conn.send_command(UNSUBSCRIBE, *channels)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+    
+    def psubscribe(self, *pattern):
+        self._conn.send_command(PSUBSCRIBE, *pattern)
+        
+    def punsubscribe(self, *pattern):
+        self._conn.send_command(PUNSUBSCRIBE, *pattern)
+        recv = self._conn.recv()
+        res = self.parse_recv(recv)
+        return res
+        
+    def pubsub(self):
+        return PubSub(self)
+    
 
 class Pipeline(Pydis):
     def __init__(self, connection, is_transaction=True):
@@ -390,3 +421,32 @@ class Pipeline(Pydis):
         self._command_count = 0
         return res[index:]
 
+
+class PubSub:
+    def __init__(self, pydis):
+        self._client = pydis
+    
+    def subscribe(self, *channels):
+        return self._client.subscribe(*channels)
+    
+    def unsubscribe(self, *channels):
+        return self._client.unsubscribe(*channels)
+    
+    def psubscribe(self, *pattern):
+        return self._client.subscribe(*pattern)
+    
+    def punsubscribe(self, *pattern):
+        return self._client.unsubscribe(*pattern)
+    
+    def listen(self):
+        while True:
+            try:
+                res = self._client._conn.recv()
+                if res:
+                    return self._client.parse_recv(res)
+            except:
+                pass
+
+    def close(self):
+        if self._client:
+            self._client.close()
