@@ -425,6 +425,7 @@ class Pipeline(Pydis):
 class PubSub:
     def __init__(self, pydis):
         self._client = pydis
+        self._listen = True
     
     def subscribe(self, *channels):
         return self._client.subscribe(*channels)
@@ -438,8 +439,12 @@ class PubSub:
     def punsubscribe(self, *pattern):
         return self._client.unsubscribe(*pattern)
     
+    def stop_listen(self):
+        self._listen = False
+    
     def listen(self):
-        while True:
+        self._listen = True
+        while self._listen:
             try:
                 res = self._client._conn.recv()
                 if res:
