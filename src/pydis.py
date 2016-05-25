@@ -20,6 +20,8 @@ class Pydis(Connection):
     def __init__(self, host='127.0.0.1', port=6379, db=0, password=None):
         self._conn = Connection(host, port, db, password)
         self._conn.connect()
+        self._pre_cmd = None
+        self._pre_args = None
         
     def close(self):
         if self._conn:
@@ -30,7 +32,14 @@ class Pydis(Connection):
             logging.debug(recv)
             recv_flag, recv_body = chr(recv[0]), recv[1:]
         if recv_flag == '-':
-            logging.error(recv_body)
+            if recv_body[:5] == b'MOVED':
+                skipIpPort = recv_body.decode().strip().split(' ')[-1].split(':')
+                self._conn.goto_connect(skipIpPort[0], skipIpPort[1])
+                self._conn._socket.send(self._conn._pre_request);
+                recv = self._conn.recv()
+                return self.parse_recv(recv)
+            else:
+                logging.error(recv_body)
             return recv_body.decode().strip()
         elif recv_flag == '+':
             recv_list = recv_body.decode().strip().split(CRLF)
@@ -407,6 +416,7 @@ class Pipeline(Pydis):
         return self
     
     def execute_pipeline(self):
+        self._conn._pre_request = self.command_stack
         self._conn._socket.send(self.command_stack)
         recv = self._conn._socket.recv(self._conn._socket_read_size)
         return self.parse_recv(recv)

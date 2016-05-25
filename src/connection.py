@@ -10,19 +10,25 @@ class Connection:
         self._socket = None
         self._socket_read_size = 65536
         self._timeout = 5
+        self._pre_request = None
         
     def set_socket_read_size(self, size):
         self._socket_read_size = size
         
     def connect(self):
-        self._socket = self._connect()
-        if self._socket is not None:
+        if self._socket is None:
+            self._socket = self._connect()
             if self._password is not None:
                 self.send_command('AUTH', self._password)
                 self._socket.recv(65536)
             if self._db is not None:
                 self.send_command('SELECT', self._db)
                 self._socket.recv(65536)
+    
+    def goto_connect(self, host='127.0.0.1', port=6379):
+        self._host = host
+        self._port = port
+        self._socket = self._connect()
                 
     def _connect(self):
         for res in socket.getaddrinfo(self._host, self._port, 0, socket.SOCK_STREAM):
@@ -49,7 +55,11 @@ class Connection:
         cmd_context = '\r\n'.join(cmd_array)
         cmd_context += '\r\n'
         logging.debug(cmd_context.encode())
+        self._pre_request = cmd_context.encode()
         self._socket.send(cmd_context.encode())
+        
+    def send_pre_command(self):
+        self._socket.send(self._pre_request)
     
     def close(self):
         if self._socket is not None:
